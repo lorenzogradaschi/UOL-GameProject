@@ -1,16 +1,5 @@
-/*
-Game Project Midterm made by Lorenzo Gradaschi
-The character is able to move trough the canvas in order to have the camera that follows him where the character goes trough the canvas
-this happens and he can have the canche to jump and avoiding to fall down trough the canyon
-the character position gets reset to 0 with camera also if at the end the character falls into the canyon
-there are two collectable items defined trough an array of collectables
-*/
-
-
 var gmChrX, gmChrY, flrPosY;
-var isGameOver = false;
-
-var lives = 3; // Global variable for lives
+var lives = 5; // Global variable for lives
 var islft, isrght, isfllng, isplmtng, isjmpg;
 var collectable; // Collectable item object
 var canyon; // Canyon object
@@ -21,15 +10,43 @@ var cameraPosX; // Camera position X
 var isFound = false; //variable to determinate if the collectable item is found
 let cloudOffset = 1;
 const START_CAM = 0; //costant for camera
+var game_score = 0; // Global variable for score
 var flagpole = {
-    x: 1600, // X position of the flagpole
+    x: 7600, // X position of the flagpole
     isReached: false,
 };
+var enemies = [];
 
+var isCollision = false;
+let birds = [];
+let wingFlap = 0;
 
-function setup() {
-    
-    createCanvas(1100, 700);
+// Percentages of world population, the higher the more resources needed, the slower the game
+// Percentage based on game_distance variable  (percentage of game_distance)
+var low_percentage = 0.0015;
+var med_percentage = 0.0020;
+var high_percentage = 0.0025;
+
+function preload() {
+	soundFormats('mp3', 'wav');
+	//Loading sounds:
+	jumpSound = loadSound('assets/robojump.wav')
+	powerUp = loadSound('assets/powerup.wav')
+	fallSound = loadSound('assets/falling-sound.wav')
+	atRespawn = loadSound('assets/start.wav')
+	checkpoint = loadSound('assets/finished.wav')
+
+	//Setting sounds' volumes;
+	// Here i have tried a for loop on an array of all sounds to set the volume for each sound but it would not work, not sure why
+	jumpSound.setVolume(0.1)
+	powerUp.setVolume(0.1)
+	fallSound.setVolume(0.1)
+	atRespawn.setVolume(0.1)
+	checkpoint.setVolume(0.1)
+}
+
+function setup() {    
+    createCanvas(1600, 900);
     //initialize the floor settings
     flrPosY = height * 3 / 4;
     //setting up the character x
@@ -43,16 +60,12 @@ function setup() {
     // assigning the camera value to 0 cause the constant is 0
     cameraPosX = START_CAM;
     var obstacles = [];
-    obstacles.push(createObstacle(500, flrPosY - 20, "spike")); // Example obstacle
-
-    // In draw:
     for (var i = 0; i < obstacles.length; i++) {
         obstacles[i].draw();
-        // Add collision detection logic if needed
     }
-
+    initializeBirds();
     // Initialise arrays tree
-    trees_x = [50, 100, 150, 300, 600, 680, 750, 900,1150, 1500, 1550]; 
+    trees_x = [3,50,100, 150, 300, 600, 680, 750, 900,1150, 1500, 1550, 1600,1650,1700,1750,1800,2110,2270,2420,2900,3500,3550,3600,3650,3700,3750,3800,3850,3900,5450,5500,5500,5550,5600,6000,6050,6100,6150,6200,6250]; 
     
     //initiliaze the array of clouds
     clouds = [
@@ -69,7 +82,20 @@ function setup() {
         {x: 559, y: flrPosY - 117, height: 120},
         {x: 830, y: flrPosY - 109, height: 110},
         {x: 1100, y: flrPosY - 109, height: 110},
-        {x: 1240, y: flrPosY - 110, height: 110}
+        {x: 1240, y: flrPosY - 110, height: 110},
+        {x: 2200, y: flrPosY - 110, height: 110},
+        {x: 2500, y: flrPosY - 110, height: 110},
+        {x: 2610, y: flrPosY - 110, height: 110},
+        {x: 2710, y: flrPosY - 110, height: 110},
+        {x: 2810, y: flrPosY - 110, height: 110},
+        {x: 4550, y: flrPosY - 110, height: 110},
+        {x: 4680, y: flrPosY - 110, height: 110},
+        {x: 4800, y: flrPosY - 110, height: 110},
+        {x: 4920, y: flrPosY - 110, height: 110},
+        {x: 5030, y: flrPosY - 110, height: 110},
+        {x: 5150, y: flrPosY - 110, height: 110},
+        {x: 5780, y: flrPosY - 110, height: 110},
+        {x: 5900, y: flrPosY - 110, height: 110}, 
     ];
 
     //initiliaze the array of collectables
@@ -78,21 +104,51 @@ function setup() {
         {x: 100, y: flrPosY - 15, isFound: false},
         {x: 1260, y: flrPosY - 15, isFound: false},
         {x: 1460, y: flrPosY - 15, isFound: false},
+        {x: 2200, y: flrPosY - 15, isFound: false},
+        {x:2500, y: flrPosY - 15, isFound: false},
+        {x:2600, y: flrPosY - 15, isFound: false},
+        {x:2700, y: flrPosY - 15, isFound: false},
+        {x:3350, y: flrPosY - 50, isFound: false},
+        {x:4450, y: flrPosY - 50, isFound: false},
+        {x:5250, y: flrPosY - 50, isFound: false},
+        {x:6050, y: flrPosY - 50, isFound: false},
+        {x:6150, y: flrPosY - 50, isFound: false},
+        {x:6650, y: flrPosY - 50, isFound: false},
+        {x:6700, y: flrPosY - 50, isFound: false},
+        {x:6750, y: flrPosY - 50, isFound: false},
+        {x:6800, y: flrPosY - 50, isFound: false},
+        {x:6850, y: flrPosY - 50, isFound: false},
+        {x:6900, y: flrPosY - 50, isFound: false},
+        {x:6950, y: flrPosY - 50, isFound: false},
     ];
 
     // Initialize canyons
-    // Initialize canyons with depth
     canyons = [
+        {x: -200, width: 100, depth: 300},
+        {x: -100, width: 100, depth: 300},
         {x: 380, width: 100, depth: 300},
         {x: 930, width: 100, depth: 300},
-        {x: 1300, width: 100, depth: 300}
+        {x: 1300, width: 100, depth: 300},
+        {x: 2300, width: 100, depth: 300},
+        {x: 2000, width: 100, depth: 300},
+        {x: 3000, width: 100, depth: 300},
+        {x: 3300, width: 100, depth: 300},
+        {x: 4000, width: 100, depth: 300},
+        {x: 4300, width: 100, depth: 300},
+        {x: 5300, width: 100, depth: 300},
+        {x: 6300, width: 100, depth: 300},
+        {x: 7300, width: 100, depth: 300},
     ];
-
+    
+     // Initialize canyons and enemies within them
+    for (let i = 0; i < canyons.length; i++) {
+        let canyonCenterX = canyons[i].x + canyons[i].width / 2;
+        let enemyY = flrPosY - canyons[i].depth / 2;
+        enemies.push(new VerticalEnemy(canyonCenterX, enemyY, canyons[i].depth / 2));
+    }
 }
 
 function draw() {
-    
-    
     //defining the background
     background(100, 155, 255);
     fill(0, 155, 0);
@@ -113,6 +169,7 @@ function draw() {
     //defininf the position for the canyon in order to check later the falling 
     let canyonStart = 590;
     let canyonEnd = 489;
+    
 
     // Draw trees
     for (var indice = 0; indice < trees_x.length; indice++) {
@@ -143,6 +200,14 @@ function draw() {
         // Reposition cloud to the left if it moves off the right side of the screen
         if (clouds[i].x - clouds[i].size > width) {
             clouds[i].x = -clouds[i].size;
+        }
+    }
+    
+    for (var i = 0; i < enemies.length; i++) {
+    enemies[i].draw();
+        if (enemies[i].checkContact(gmChrX, gmChrY)) {
+            console.log("Collision with enemy " + i);
+            // handle collision
         }
     }
 
@@ -190,16 +255,18 @@ function draw() {
     
     drawScore();
     drawLives();
-    checkFlagpole();
+
     drawFlagpole();
-   
-    //Enemy();
+    for (let bird of birds) {
+        bird.draw();
+    }
     
    // Iterate over collectables to update game_score
     for (let i = 0; i < collectables.length; i++) {
         let collectable = collectables[i];
         if (!collectable.isFound && gmChrX > collectable.x - 50 && gmChrX < collectable.x + 50) {
             collectable.isFound = true;
+            powerUp.play();
             game_score += 1; // Increment game_score
         }
     }
@@ -257,7 +324,9 @@ function draw() {
         if (gmChrX > canyons[i].x && gmChrX < canyons[i].x + canyons[i].width) {
             if (gmChrY >= flrPosY) {
                 isplmtng = true;
+                atRespawn.play();
                 break; // Exit the loop if the character is plummeting in any canyon
+                
             }
         }
     }
@@ -353,7 +422,20 @@ function draw() {
         isplmtng = false;
     }
     
-     checkPlayerStatus(); // Add this line
+     //checkPlayerStatus(); // Add this line
+    
+    checkFlagpole();
+
+    if (flagpole.isReached) {
+        checkpoint.play();
+        fill(0, 0, 0); // Set text color to red
+        textSize(50); // Set text size
+        textAlign(CENTER, CENTER);
+        // Draw text relative to the camera position
+        background(255,255,255);
+        text("Level Complete, Press Space to restart", width / 2 + cameraPosX, height / 2);
+        // noLoop(); // Uncomment this if you want to stop the loop after displaying the message
+    }
 }
 
 //codce that check which tkey has been pressed
@@ -366,8 +448,10 @@ function keyPressed() {
     }
     if(keyCode == 32 && gmChrY == flrPosY) {
         isjmpg = true;
+        
     }
 }
+
 //codce that check which tkey has been released
 function keyReleased() {
     if(keyCode == 37) {
@@ -449,16 +533,18 @@ function checkPlayerDie() {
 function checkGameOver() {
     if (lives <= 0) {
         // Game over logic
+        fallSound.play();
         fill(255, 0, 0);
         textSize(50);
         textAlign(CENTER, CENTER);
-        text("Game Over. Press space to continue.", width / 2, height / 2);
+        background(0,0,0);
+        text("Game Over. Press space to continue.", width / 2+ cameraPosX, height / 2);
         noLoop();
         return; // Immediately exit the function to prevent resetting the character
     }
-
     // Reset the character's position and camera for the next attempt
     resetGame();
+    
 }
 
 
@@ -475,10 +561,11 @@ function resetGame() {
 
     // Reset camera position
     cameraPosX = START_CAM;
+    initializeBirds();
 
     // Reset score and lives
     game_score = 0;
-    lives = 3;
+    lives = 5;
 
     // Reset flagpole
     flagpole.isReached = false;
@@ -494,18 +581,46 @@ function resetGame() {
 
     // Re-initialize collectables
     collectables = [
-        {x: 700, y: flrPosY - 15, isFound: false},
+        {x: 700, y: flrPosY - 15, isFound: false}, 
         {x: 100, y: flrPosY - 15, isFound: false},
         {x: 1260, y: flrPosY - 15, isFound: false},
         {x: 1460, y: flrPosY - 15, isFound: false},
+        {x: 2200, y: flrPosY - 15, isFound: false},
+        {x:2500, y: flrPosY - 15, isFound: false},
+        {x:2600, y: flrPosY - 15, isFound: false},
+        {x:2700, y: flrPosY - 15, isFound: false},
+        {x:3350, y: flrPosY - 50, isFound: false},
+        {x:4450, y: flrPosY - 50, isFound: false},
+        {x:5250, y: flrPosY - 50, isFound: false},
+        {x:6050, y: flrPosY - 50, isFound: false},
+        {x:6150, y: flrPosY - 50, isFound: false},
+        {x:6650, y: flrPosY - 50, isFound: false},
+        {x:6700, y: flrPosY - 50, isFound: false},
+        {x:6750, y: flrPosY - 50, isFound: false},
+        {x:6800, y: flrPosY - 50, isFound: false},
+        {x:6850, y: flrPosY - 50, isFound: false},
+        {x:6900, y: flrPosY - 50, isFound: false},
+        {x:6950, y: flrPosY - 50, isFound: false},
     ];
-
     // Re-initialize canyons
     canyons = [
+        {x: -200, width: 100, depth: 300},
+        {x: -100, width: 100, depth: 300},
         {x: 380, width: 100, depth: 300},
         {x: 930, width: 100, depth: 300},
-        {x: 1300, width: 100, depth: 300}
+        {x: 1300, width: 100, depth: 300},
+        {x: 2300, width: 100, depth: 300},
+        {x: 2000, width: 100, depth: 300},
+        {x: 3000, width: 100, depth: 300},
+        {x: 3300, width: 100, depth: 300},
+        {x: 4000, width: 100, depth: 300},
+        {x: 4300, width: 100, depth: 300},
+        {x: 5300, width: 100, depth: 300},
+        {x: 6300, width: 100, depth: 300},
+        {x: 7300, width: 100, depth: 300},
+        
     ];
+
 
     loop();
 }
@@ -520,6 +635,7 @@ function keyPressed() {
     } else if (keyCode === 39) {
         isrght = true;
     } else if (keyCode === 32 && gmChrY == flrPosY) {
+         jumpSound.play();
         isjmpg = true;
     }
 }
@@ -572,19 +688,18 @@ function drawSun() {
     // Draw the sun
     fill(255, 255, 0); // Yellow color for the sun
     noStroke();
-    ellipse(sunX, sunY, sunRadius * 2, sunRadius * 2); // Draw the sun
+    ellipse(sunX+cameraPosX, sunY, sunRadius * 2, sunRadius * 2); // Draw the sun
 
     // Optional: Draw sun rays
     stroke(255, 255, 0); // Yellow color for the rays
     strokeWeight(2);
     for (let angle = 0; angle < TWO_PI; angle += QUARTER_PI / 3) {
-        let rayX = sunX + cos(angle) * sunRadius * 1.5;
+        let rayX = sunX+cameraPosX + cos(angle) * sunRadius * 1.5;
         let rayY = sunY + sin(angle) * sunRadius * 1.5;
-        line(sunX, sunY, rayX, rayY);
+        line(sunX+cameraPosX, sunY, rayX, rayY);
     }
 }
 
-var game_score = 0; // Global variable for score
 
 function drawScore() {
     fill(0,0,0);
@@ -597,24 +712,14 @@ function drawScore() {
 function checkFlagpole() {
     var d = abs(gmChrX - flagpole.x);
     if (d < 10 && !flagpole.isReached) {
-        isGameOver = true;
         flagpole.isReached = true;
-        console.log("Level Complete");
-        console.log(flagpole.isReached);
-        
-        if (flagpole.isReached) {
-            fill(255, 0, 0);
-            textSize(50);
-            textAlign(CENTER, CENTER);
-            text("Level Complete", width / 2, height / 2);
-           
-        }
-        
     }
 }
 
-
 function keyPressed() {
+    if (keyCode === 32 && flagpole.isReached) {
+        resetGame();
+    }
     if (keyCode === 32 && lives <= 0) {
         // Space bar pressed and game is over
         resetGame();
@@ -625,72 +730,89 @@ function keyPressed() {
         isrght = true;
     } else if (keyCode === 32 && gmChrY == flrPosY) {
         isjmpg = true;
+        jumpSound.play();
     }
 }
 
-
-
-function checkPlayerStatus() {
-    if (flagpole.isReached) {
-       fill(255, 0, 0);
-        textSize(50);
-        textAlign(CENTER, CENTER);
-        text("Level Complete", width / 2, height / 2);
-        noLoop(); // Stops the draw loop
-    }
-}
-
-function createObstacle(x, y, type) {
-    var obstacle = {
-        x: x,
-        y: y,
-        type: type,
-
-        draw: function() {
-            if (this.type === "spike") {
-                fill(128, 128, 128);
-                triangle(this.x, this.y, this.x + 15, this.y - 20, this.x + 30, this.y);
-            }
-            // Add more types as needed
-        },
-
-        checkCollision: function(gc_x, gc_y) {
-            // Collision logic for the obstacle
-        }
-    };
-    return obstacle;
-}
-
-
-function Enemy(x, y, range) {
+function VerticalEnemy(x, y, range) {
     this.x = x;
     this.y = y;
     this.range = range;
-    this.currentX = x;
-    this.inc = 2;
+    this.currentY = y;
+    this.inc = 2; // Speed of vertical movement
+    this.collisionProcessed = false; // New property
 
     this.update = function() {
-        this.currentX += this.inc;
-        if (this.currentX >= this.x + this.range || this.currentX <= this.x - this.range) {
+        this.currentY += this.inc;
+        // Reverse direction when it reaches the top or bottom of the range
+        if (this.currentY >= this.y + this.range || this.currentY <= this.y - this.range) {
             this.inc = -this.inc;
         }
     };
 
     this.draw = function() {
+        // Update the position of the enemy
         this.update();
-        fill(255, 0, 0);
-        ellipse(this.currentX, this.y, 20, 20);
-    };
 
-    this.checkContact = function(gc_x, gc_y) {
-        var d = dist(gc_x, gc_y, this.currentX, this.y);
-        if (d < 20) {
-            return true;
-        }
-        return false;
+        // Set the drawing context to the enemy's position
+        push();
+        translate(this.x, this.currentY);
+
+        // Draw the enemy's head
+        fill(255, 0, 0); // Red color for the enemy
+        ellipse(0, 0, 50, 50);
+
+        // Draw the eyes
+        fill(255); // White color for eyes
+        ellipse(-10, -10, 15, 20); // Left eye
+        ellipse(10, -10, 15, 20); // Right eye
+
+        // Draw the pupils
+        fill(0); // Black color for pupils
+        ellipse(-10, -10, 5, 5); // Left pupil
+        ellipse(10, -10, 5, 5); // Right pupil
+
+        // Draw angry eyebrows
+        stroke(0);
+        strokeWeight(5);
+        line(-15, -20, -5, -15); // Left eyebrow
+        line(15, -20, 5, -15); // Right eyebrow
+
+        // Draw the mouth
+        noStroke();
+        fill(128); // Dark color for mouth
+        arc(0, 10, 30, 20, 0, PI); // Mouth shape
+
+        pop();
     };
 }
 
+VerticalEnemy.prototype.checkContact = function(gc_x, gc_y) {
+    var enemyHalfWidth = 25; // Half of the enemy width
+    var characterHalfWidth = 15; // Half of the character width
+
+    // Check horizontal and vertical overlap
+    var horizontalOverlap = abs(gc_x - this.x) <= (enemyHalfWidth + characterHalfWidth);
+    var verticalOverlap = abs(gc_y - this.currentY) <= (enemyHalfWidth + characterHalfWidth);
+
+    // Collision occurs if both horizontal and vertical overlaps are true
+    if (horizontalOverlap && verticalOverlap) {
+        if (!this.collisionProcessed) {
+            lives -= 1;
+            this.collisionProcessed = true; // Mark collision as processed
+            fallSound.play();
+            console.log("Collision detected");
+            if (lives <= 0) {
+                checkGameOver();
+            }
+        }
+        return true;
+    } else {
+        this.collisionProcessed = false; // Reset if not colliding
+    }
+
+    return false;
+};
 
 function drawLives() {
     fill(0,0,0);
@@ -743,4 +865,48 @@ function drawCharacter(x, y) {
     rect(0, 20, 20, 40); // Right leg
 
     pop();
+}
+
+function createBird(x, y, speed) {
+    return {
+        x: x,
+        y: y,
+        speed: speed,
+        flap: 0,
+
+        draw: function() {
+            this.flap = sin(frameCount / 10) * 10; // Flapping effect
+            drawBird(this.x, this.y + this.flap);
+            this.x += this.speed;
+        }
+    };
+}
+
+// Create birds in a matrix pattern
+function initializeBirds() {
+    let spacingX = 50;
+    let spacingY = 50;
+    let startX = 100;
+    let startY = 100;
+    let speed = 3;
+
+    for (let i = 0; i < 3; i++) { // 3 rows
+        for (let j = 0; j < 3; j++) { // 3 birds in each row
+            birds.push(createBird(startX + j * spacingX, startY + i , speed));
+        }
+        startX -= 125; // Offset for next row
+        startY += 100;
+    }
+}
+
+function drawBird(x, y) {
+    // Body of the bird
+    fill(255, 200, 200); // Light red color
+    ellipse(x, y, 20, 15);
+
+    // Wings - they will flap
+    let wingWidth = 20;
+    let wingHeight = 10;
+    ellipse(x - 5, y, wingWidth, wingHeight + wingFlap); // Left wing
+    ellipse(x + 5, y, wingWidth, wingHeight + wingFlap); // Right wing
 }
